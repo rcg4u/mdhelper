@@ -450,13 +450,13 @@ int main (int argc, const char * argv[]) {
 		if ([darg caseInsensitiveCompare:@"-platform"] == NSOrderedSame) 
 		{
 			pmatchphrase = [[NSUserDefaults standardUserDefaults] objectForKey:@"platform"];
-			printf("Setting platform match phrase to %s.\n", [fmatchphrase UTF8String]);
+			printf("Setting platform match phrase to %s.\n", [pmatchphrase UTF8String]);
 			continue;
 		}
 		if ([darg caseInsensitiveCompare:@"-files"] == NSOrderedSame) 
 		{
 			fmatchphrase = [[NSUserDefaults standardUserDefaults] objectForKey:@"files"];
-			printf("Setting file match phrase to %s.\n", [pmatchphrase UTF8String]);
+			printf("Setting file match phrase to %s.\n", [fmatchphrase UTF8String]);
 			continue;
 		}
 		if ([darg caseInsensitiveCompare:@"-skipv2"] == NSOrderedSame) 
