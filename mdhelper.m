@@ -296,7 +296,7 @@ void listPlatformContents(int option, NSString *pmatchphrase, NSString *fmatchph
 void fileDrillDown(NSString *from, NSString *path)
 {
 	if (!path) return;
-	NSMutableArray *components = [NSMutableArray arrayWithArray:[path componentsSeparatedByString:@"/"]];
+	NSMutableArray *components = [NSMutableArray arrayWithArray:[path pathComponents]];
 	// NSString *last = [components lastObject];
 	[components removeLastObject];
 	
