@@ -344,6 +344,11 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 				
 				NSString *mdpath = [fullPath stringByAppendingPathComponent:eachFile];
 				NSDictionary *mddict = [NSDictionary dictionaryWithContentsOfFile: mdpath];	
+				if (![mddict objectForKey:@"Domain"])
+				{
+					printf("Error with domain for %s\n", [mdpath UTF8String]);
+					printf("Path would have been: %s\n", [mddict objectForKey:@"Path"]);
+				}
 				NSString *outpath = [[mddict objectForKey:@"Domain"] stringByAppendingPathComponent:[mddict objectForKey:@"Path"]];
 
 				BOOL fmatch = YES;
@@ -389,6 +394,12 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 				NSDictionary *plist = (NSDictionary *)CFPropertyListCreateFromXMLData(kCFAllocatorDefault, (CFDataRef)mdata, kCFPropertyListMutableContainers, nil);
 				NSString *outpath = [[mddict objectForKey:@"Domain"] stringByAppendingPathComponent:[mddict objectForKey:@"Path"]];
 				if (![mddict objectForKey:@"Domain"]) outpath = [[plist objectForKey:@"Domain"] stringByAppendingPathComponent:[plist objectForKey:@"Path"]];
+				
+				if (![plist objectForKey:@"Domain"])
+				{
+					printf("Error with domain for %s\n", [mdpath UTF8String]);
+					printf("Path would have been: %s\n", [plist objectForKey:@"Path"]);
+				}
 				
 				BOOL fmatch = YES;
 				if (fmatchphrase) fmatch = checkmatch(outpath, fmatchphrase);
