@@ -108,7 +108,7 @@ void addPathToFileDict(NSMutableDictionary *filedict, NSString *path)
 {
 	if (!path) return;
 	
-	NSMutableArray *components = [NSMutableArray arrayWithArray:[path componentsSeparatedByString:@"/"]];
+	NSMutableArray *components = [NSMutableArray arrayWithArray:[path pathComponents]];
 	
 	NSString *last = [components lastObject];
 	[components removeLastObject];
