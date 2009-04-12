@@ -1,17 +1,14 @@
 #import <Foundation/Foundation.h>
 
 #pragma mark Constants
-#define NOTEST		0
-#define DEVICETEST	1 << 0
-#define FNAMETEST	1 << 1
-#define MDTEST		1 << 2
-
 #define SUMMARY		0
 #define SHOWFILES	1 << 0
-#define SHOWMDS		1 << 1
-#define SKIPV2		1 << 2
-#define SKIPV3		1 << 3
-#define GLOB		1 << 4
+#define SHOWDOMS	1 << 1
+#define SHOWMDS		1 << 2
+#define SKIPOLD		1 << 3
+#define SKIPNEW		1 << 4
+#define GLOB		1 << 5
+
 
 
 #pragma mark Backup Folder Utilities
@@ -173,30 +170,41 @@ void listPlatformContents(int option, NSString *pmatchphrase, NSString *fmatchph
 {
 	for (NSString *path in backupFolders())
 	{
+		// Recover full path, Info.plist, and device name
 		NSString *fullPath = [backupDirPath() stringByAppendingPathComponent:path];
 		NSString *infoPath = [fullPath stringByAppendingPathComponent:@"Info.plist"];
 		NSDictionary *infoDict = [NSDictionary dictionaryWithContentsOfFile:infoPath];
 		NSString *deviceName = [infoDict objectForKey:@"Device Name"];
+
+		// Extract the mod date for the backup
+		NSDictionary *dirdict = [[NSFileManager defaultManager] attributesOfItemAtPath:fullPath error:nil];
+		NSDateFormatter *df = [[[NSDateFormatter alloc] init] autorelease];
+		[df setDateStyle:NSDateFormatterLongStyle];
+		[df setTimeStyle:NSDateFormatterShortStyle];
+		NSString *moddate = [df stringFromDate:[dirdict objectForKey:NSFileModificationDate]];
 		
+		// Each item in that folder needs to be a folder itself, otherwise skip
 		BOOL isDir;
 		[[NSFileManager defaultManager] fileExistsAtPath:fullPath isDirectory: &isDir];
 		if (!isDir) continue;
 		
+		// Do a match against the platform name and/or device id
 		BOOL pmatch = YES;
-		
-		if (pmatchphrase) pmatch = checkmatch(deviceName, pmatchphrase);
+		if (pmatchphrase) pmatch = checkmatch(deviceName, pmatchphrase) | checkmatch(path, pmatchphrase);
 		if (!pmatch) continue;
-			
-		printf("\nDEVICE %s\n", [deviceName UTF8String]);
+
+		// Produce a platform summary intro
+		printf("\nDEVICE %s (%s)\n", [deviceName UTF8String], [moddate UTF8String]);
 		printf("Directory: %s\n", [path UTF8String]);
 		
 		NSArray *mdArray2 = [[[NSFileManager defaultManager] directoryContentsAtPath:fullPath] pathsMatchingExtensions:[NSArray arrayWithObject:@"mdbackup"]];
-		if (!(option & SKIPV2))	printf("Total 2.x files found: %d backup files\n", [mdArray2 count]);
+		if (!(option & SKIPOLD))	printf("Total mdbackup files found: %d backup files\n", [mdArray2 count]);
 		
 		NSArray *mdArray3 = [[[NSFileManager defaultManager] directoryContentsAtPath:fullPath] pathsMatchingExtensions:[NSArray arrayWithObject:@"mdinfo"]];
-		if (!(option & SKIPV3)) printf("Total 3.x files found: %d backup files\n", [mdArray3 count]);
+		if (!(option & SKIPNEW)) printf("Total mdinfo files found: %d backup files\n", [mdArray3 count]);
 		
-		if ((option & SHOWFILES) && !(option & SKIPV2))
+		// Scan through the old style mdbackup files
+		if ((option & SHOWFILES) && !(option & SKIPOLD))
 		{
 			NSMutableDictionary *filedict = [NSMutableDictionary dictionary];
 			for (NSString *eachFile in mdArray2)
@@ -216,7 +224,8 @@ void listPlatformContents(int option, NSString *pmatchphrase, NSString *fmatchph
 			showFileDict(filedict);
 		}
 		
-		if ((option & SHOWFILES) && !(option & SKIPV3))
+		// Scan through the new style mdinfo files
+		if ((option & SHOWFILES) && !(option & SKIPNEW))
 		{
 			NSMutableDictionary *filedict = [NSMutableDictionary dictionary];
 			for (NSString *eachFile in mdArray3)
@@ -225,7 +234,6 @@ void listPlatformContents(int option, NSString *pmatchphrase, NSString *fmatchph
 				NSDictionary *mddict = [NSDictionary dictionaryWithContentsOfFile: mdpath];	
 				NSData *mdata = [mddict objectForKey:@"Metadata"];
 				CFPropertyListRef plist = CFPropertyListCreateFromXMLData(kCFAllocatorDefault, (CFDataRef)mdata, kCFPropertyListMutableContainers, nil);
-				
 				NSString *path = [[mddict objectForKey:@"Domain"] stringByAppendingPathComponent:[mddict objectForKey:@"Path"]];
 				if (!path) path = [(NSDictionary *)plist objectForKey:@"Path"];
 				BOOL fmatch = YES;
@@ -239,8 +247,51 @@ void listPlatformContents(int option, NSString *pmatchphrase, NSString *fmatchph
 			printf("\n");
 			showFileDict(filedict);
 		}
+		
+		if (option & SHOWDOMS)
+		{
+			NSMutableArray *doms = [NSMutableArray array];
+			
+			if (!(option & SKIPOLD))
+			{
+				for (NSString *eachFile in mdArray2)
+				{
+					NSString *mdpath = [fullPath stringByAppendingPathComponent:eachFile];
+					NSDictionary *mddict = [NSDictionary dictionaryWithContentsOfFile: mdpath];	
+					[doms addObject:[mddict objectForKey:@"Domain"]];
+				}
+			}
+			if (!(option & SKIPNEW))
+			{
+				for (NSString *eachFile in mdArray3)
+				{
+					NSString *mdpath = [fullPath stringByAppendingPathComponent:eachFile];
+					NSDictionary *mddict = [NSDictionary dictionaryWithContentsOfFile: mdpath];	
+					NSData *mdata = [mddict objectForKey:@"Metadata"];
+					CFPropertyListRef plist = CFPropertyListCreateFromXMLData(kCFAllocatorDefault, (CFDataRef)mdata, kCFPropertyListMutableContainers, nil);
+					NSString *domain = [(NSDictionary *)plist objectForKey:@"Domain"];
+					if (domain) [doms addObject:domain];
+				}
+			}
+			
+			if ([doms count] == 0) continue;
+
+			NSMutableArray *domains = [NSMutableArray array];
+			for (NSString *object in [doms sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)])
+				if (![[domains lastObject] isEqualToString:object]) [domains addObject:object];
+			
+			printf("Domains on this device:\n");
+			for (NSString *object in domains) 
+			{
+				BOOL fmatch = YES;
+				if (fmatchphrase) fmatch = checkmatch(object, fmatchphrase);
+				if (fmatch) printf("    %s\n", [object UTF8String]);
+			}
+		}
 	}
 }
+
+#pragma mark File Extraction
 
 void fileDrillDown(NSString *from, NSString *path)
 {
@@ -256,8 +307,6 @@ void fileDrillDown(NSString *from, NSString *path)
 		[[NSFileManager defaultManager] createDirectoryAtPath:xpath attributes:NULL];
 	}
 }
-
-
 
 void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatchphrase)
 {
@@ -288,7 +337,7 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 		[[NSFileManager defaultManager] createDirectoryAtPath:devDir attributes:NULL];
 		
 		// extract files from the v2 
-		if (!(option & SKIPV2))
+		if (!(option & SKIPOLD))
 		{
 			for (NSString *eachFile in mdArray2)
 			{
@@ -330,7 +379,7 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 			printf("\n");
 		}
 		
-		if (!(option & SKIPV3))
+		if (!(option & SKIPNEW))
 		{
 			for (NSString *eachFile in mdArray3)
 			{
@@ -382,35 +431,36 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 void usage ()
 {
 	//      12345678901234567890123456789012345678901234567890123456789012345678901234567890
-	printf("mdhelper now supports both 2.x and 3.x backups\n\n");
+	printf("mdhelper now supports both mdbackup and mdinfo/mddata backups\n\n");
 	printf("Usage: mdhelper options\n");
 	printf("-help			show this message\n");
 	printf("-dir			show the backup directory\n");
+	
 	printf("-summary		show summary for each platform\n");
 	printf("-list			list all files for each platform\n");
+	printf("-domains		list domains for each platform\n");
 	
 	printf("-platform matchphrase	limit results to matching platforms\n");
 	printf("-files matchphrase	limit results to matching files\n");
 	
-	printf("-skipv2			skip 2.x backups\n");
-	printf("-skipv3			skip 3.x backups\n");
+	printf("-skipold		skip old style mdbackup backups\n");
+	printf("-skipnew		skip new style mddata/mdinfo backups\n");
+	
+	printf("-extract		extract files and store to desktop recovery folder\n");
+	printf("-glob			do not preserve the file structure when extracting files\n");
 
-	printf("-manifests		recover manifests and store on desktop\n");
+	printf("-manifests		recover manifests and store to desktop recovery folder\n");
 	printf("-xml			request property list output in XML format\n");
 	printf("-binary			request property list output in binary format\n");
 	
-	printf("-extract		extract files and store on desktop\n");
-	printf("-glob			do not preserve the file structure when extracting files\n");
-	
 	printf("\n");
-	printf("About matching:\n");
 	printf("When matching, supply a short phrase or regular expresson. Regexps must\n");
 	printf("match the entire item name. e.g. '.a' will match Ba but not Bologna while\n");
 	printf("'.*a' will match both. Non regular expressions are compared for 'containment'\n");
-	printf("so 'a' will match Ba, Bar, Abar, and Bologna.\n");
+	printf("so 'a' will match Ba, Bar, Able, and Bologna.\n");
 }
 
-void showbudir ()
+void showbackupdir ()
 {
 	printf("%s\n", [backupDirPath() UTF8String]);
 }
@@ -459,16 +509,22 @@ int main (int argc, const char * argv[]) {
 			printf("Setting file match phrase to %s.\n", [fmatchphrase UTF8String]);
 			continue;
 		}
-		if ([darg caseInsensitiveCompare:@"-skipv2"] == NSOrderedSame) 
+		if ([darg caseInsensitiveCompare:@"-file"] == NSOrderedSame) 
 		{
-			skips = skips | SKIPV2;
-			printf("Skipping 2.x backup files.\n");
+			fmatchphrase = [[NSUserDefaults standardUserDefaults] objectForKey:@"file"];
+			printf("Setting file match phrase to %s.\n", [fmatchphrase UTF8String]);
 			continue;
 		}
-		if ([darg caseInsensitiveCompare:@"-skipv3"] == NSOrderedSame) 
+		if ([darg caseInsensitiveCompare:@"-skipold"] == NSOrderedSame) 
 		{
-			skips = skips | SKIPV3;
-			printf("Skipping 3.x backup files.\n");
+			skips = skips | SKIPOLD;
+			printf("Skipping old backup files.\n");
+			continue;
+		}
+		if ([darg caseInsensitiveCompare:@"-skipnew"] == NSOrderedSame) 
+		{
+			skips = skips | SKIPNEW;
+			printf("Skipping new backup files.\n");
 			continue;
 		}
 		if ([darg caseInsensitiveCompare:@"-glob"] == NSOrderedSame) 
@@ -479,34 +535,71 @@ int main (int argc, const char * argv[]) {
 		}
 	}
 	
+	BOOL didSomething = NO;
+
 	// Scan for actions
 	for (NSString *darg in dashedArgs)
 	{
-		if ([darg caseInsensitiveCompare:@"-help"] == NSOrderedSame) {usage(); continue;}
-
-		if ([darg caseInsensitiveCompare:@"-dir"] == NSOrderedSame)  {showbudir(); continue;}
-		if ([darg caseInsensitiveCompare:@"-directory"] == NSOrderedSame)  {showbudir(); continue;}
-
-		if ([darg caseInsensitiveCompare:@"-manifests"] == NSOrderedSame)  {getManifests(isXML); continue;}
-		
-		if ([darg caseInsensitiveCompare:@"-summary"] == NSOrderedSame)  
+		if ([darg caseInsensitiveCompare:@"-help"] == NSOrderedSame)
 		{
-			listPlatformContents(SUMMARY | skips, pmatchphrase, fmatchphrase); 
+			usage(); 
+			didSomething = YES;
 			continue;
 		}
+
+		if (([darg caseInsensitiveCompare:@"-dir"] == NSOrderedSame) ||
+			([darg caseInsensitiveCompare:@"-directory"] == NSOrderedSame))
+		{
+			showbackupdir(); 
+			didSomething = YES;
+			continue;
+		}
+		
+		if ([darg caseInsensitiveCompare:@"-manifests"] == NSOrderedSame)  
+		{
+			getManifests(isXML);
+			didSomething = YES;
+			continue;
+		}
+		
+		if (([darg caseInsensitiveCompare:@"-summary"] == NSOrderedSame) ||
+			([darg caseInsensitiveCompare:@"-device"] == NSOrderedSame)  ||
+		    ([darg caseInsensitiveCompare:@"-devices"] == NSOrderedSame))
+		{
+			listPlatformContents(SUMMARY | skips, pmatchphrase, fmatchphrase); 
+			didSomething = YES;
+			continue;
+		}
+
 		if ([darg caseInsensitiveCompare:@"-list"] == NSOrderedSame)  
 		{
 			listPlatformContents(SHOWFILES | skips, pmatchphrase, fmatchphrase); 
+			didSomething = YES;
 			continue;
 		}
+		
 		if ([darg caseInsensitiveCompare:@"-extract"] == NSOrderedSame)  
 		{
 			extractPlatformContents(skips, pmatchphrase, fmatchphrase); 
+			didSomething = YES;
+			continue;
+		}
+		
+		if ([darg caseInsensitiveCompare:@"-domains"] == NSOrderedSame)  
+		{
+			didSomething = YES;
+			listPlatformContents(SHOWDOMS | skips, pmatchphrase, fmatchphrase); 
 			continue;
 		}
 	}
 	
-	printf("Done.\n");
+	if (!didSomething) 
+	{
+		usage();
+		exit(1);
+	}
+	
+	printf("Done\n");
 	
     [pool drain];
     return 0;
