@@ -403,7 +403,7 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 					continue;
 				}
 				
-				if (!domain)
+				if (!path)
 				{
 					printf("Skipping %s [path error, new]\n", [mdpath UTF8String]);
 					continue;
