@@ -388,7 +388,7 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 				NSData *mdata = [mddict objectForKey:@"Metadata"];
 				NSDictionary *plist = (NSDictionary *)CFPropertyListCreateFromXMLData(kCFAllocatorDefault, (CFDataRef)mdata, kCFPropertyListMutableContainers, nil);
 				NSString *outpath = [[mddict objectForKey:@"Domain"] stringByAppendingPathComponent:[mddict objectForKey:@"Path"]];
-				if (!outpath) outpath = [[plist objectForKey:@"Domain"] stringByAppendingPathComponent:[plist objectForKey:@"Path"]];
+				if (![mddict objectForKey:@"Domain"]) outpath = [[plist objectForKey:@"Domain"] stringByAppendingPathComponent:[plist objectForKey:@"Path"]];
 				
 				BOOL fmatch = YES;
 				if (fmatchphrase) fmatch = checkmatch(outpath, fmatchphrase);
