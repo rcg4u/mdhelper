@@ -344,13 +344,27 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 				
 				NSString *mdpath = [fullPath stringByAppendingPathComponent:eachFile];
 				NSDictionary *mddict = [NSDictionary dictionaryWithContentsOfFile: mdpath];	
-				if (![mddict objectForKey:@"Domain"])
+				NSData *mdata = [mddict objectForKey:@"Metadata"];
+				NSDictionary *plist = (NSDictionary *)CFPropertyListCreateFromXMLData(kCFAllocatorDefault, (CFDataRef)mdata, kCFPropertyListMutableContainers, nil);
+				NSString *domain = [mddict objectForKey:@"Domain"];
+				if (!domain) domain = [plist objectForKey:@"Domain"];
+				NSString *xpath = [mddict objectForKey:@"Path"];
+				if (!xpath) xpath = [plist objectForKey:@"Path"];
+				
+				if (!domain)
 				{
 					printf("Skipping %s [domain error, old]\n", [mdpath UTF8String]);
 					continue;
 				}
-				NSString *outpath = [[mddict objectForKey:@"Domain"] stringByAppendingPathComponent:[mddict objectForKey:@"Path"]];
-
+				
+				if (!xpath)
+				{
+					printf("Skipping %s [path error, old]\n", [mdpath UTF8String]);
+					continue;
+				}
+				
+				NSString *outpath = [domain stringByAppendingPathComponent:xpath];
+				
 				BOOL fmatch = YES;
 				if (fmatchphrase) fmatch = checkmatch(outpath, fmatchphrase);
 				if (fmatch) 
@@ -403,7 +417,7 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 					continue;
 				}
 				
-				if (!path)
+				if (!xpath)
 				{
 					printf("Skipping %s [path error, new]\n", [mdpath UTF8String]);
 					continue;
