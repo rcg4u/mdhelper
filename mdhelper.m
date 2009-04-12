@@ -258,7 +258,7 @@ void listPlatformContents(int option, NSString *pmatchphrase, NSString *fmatchph
 				{
 					NSString *mdpath = [fullPath stringByAppendingPathComponent:eachFile];
 					NSDictionary *mddict = [NSDictionary dictionaryWithContentsOfFile: mdpath];	
-					[doms addObject:[mddict objectForKey:@"Domain"]];
+					if ([mddict objectForKey:@"Domain"]) [doms addObject:[mddict objectForKey:@"Domain"]];
 				}
 			}
 			if (!(option & SKIPNEW))
