@@ -346,8 +346,8 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 				NSDictionary *mddict = [NSDictionary dictionaryWithContentsOfFile: mdpath];	
 				if (![mddict objectForKey:@"Domain"])
 				{
-					printf("Error with domain for %s\n", [mdpath UTF8String]);
-					printf("Path would have been: %s\n", [mddict objectForKey:@"Path"]);
+					printf("Skipping %s [domain error, old]\n", [mdpath UTF8String]);
+					continue;
 				}
 				NSString *outpath = [[mddict objectForKey:@"Domain"] stringByAppendingPathComponent:[mddict objectForKey:@"Path"]];
 
@@ -392,14 +392,24 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 				NSDictionary *mddict = [NSDictionary dictionaryWithContentsOfFile: mdpath];	
 				NSData *mdata = [mddict objectForKey:@"Metadata"];
 				NSDictionary *plist = (NSDictionary *)CFPropertyListCreateFromXMLData(kCFAllocatorDefault, (CFDataRef)mdata, kCFPropertyListMutableContainers, nil);
-				NSString *outpath = [[mddict objectForKey:@"Domain"] stringByAppendingPathComponent:[mddict objectForKey:@"Path"]];
-				if (![mddict objectForKey:@"Domain"]) outpath = [[plist objectForKey:@"Domain"] stringByAppendingPathComponent:[plist objectForKey:@"Path"]];
+				NSString *domain = [mddict objectForKey:@"Domain"];
+				if (!domain) domain = [plist objectForKey:@"Domain"];
+				NSString *xpath = [mddict objectForKey:@"Path"];
+				if (!xpath) xpath = [plist objectForKey:@"Path"];
 				
-				if (![plist objectForKey:@"Domain"])
+				if (!domain)
 				{
-					printf("Error with domain for %s\n", [mdpath UTF8String]);
-					printf("Path would have been: %s\n", [plist objectForKey:@"Path"]);
+					printf("Skipping %s [domain error, new]\n", [mdpath UTF8String]);
+					continue;
 				}
+				
+				if (!domain)
+				{
+					printf("Skipping %s [path error, new]\n", [mdpath UTF8String]);
+					continue;
+				}
+
+				NSString *outpath = [domain stringByAppendingPathComponent:xpath];
 				
 				BOOL fmatch = YES;
 				if (fmatchphrase) fmatch = checkmatch(outpath, fmatchphrase);
