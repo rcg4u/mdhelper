@@ -351,19 +351,14 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 				NSString *xpath = [mddict objectForKey:@"Path"];
 				if (!xpath) xpath = [plist objectForKey:@"Path"];
 				
-				if (!domain)
-				{
-					printf("Skipping %s [domain error, old]\n", [mdpath UTF8String]);
-					continue;
-				}
-				
 				if (!xpath)
 				{
 					printf("Skipping %s [path error, old]\n", [mdpath UTF8String]);
 					continue;
 				}
-				
-				NSString *outpath = [domain stringByAppendingPathComponent:xpath];
+			
+				NSString *outpath = xpath;
+				if (domain) outpath = [domain stringByAppendingPathComponent:xpath];
 				
 				BOOL fmatch = YES;
 				if (fmatchphrase) fmatch = checkmatch(outpath, fmatchphrase);
@@ -411,19 +406,14 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 				NSString *xpath = [mddict objectForKey:@"Path"];
 				if (!xpath) xpath = [plist objectForKey:@"Path"];
 				
-				if (!domain)
-				{
-					printf("Skipping %s [domain error, new]\n", [mdpath UTF8String]);
-					continue;
-				}
-				
 				if (!xpath)
 				{
 					printf("Skipping %s [path error, new]\n", [mdpath UTF8String]);
 					continue;
 				}
-
-				NSString *outpath = [domain stringByAppendingPathComponent:xpath];
+				
+				NSString *outpath = xpath;
+				if (domain) outpath = [domain stringByAppendingPathComponent:xpath];
 				
 				BOOL fmatch = YES;
 				if (fmatchphrase) fmatch = checkmatch(outpath, fmatchphrase);
