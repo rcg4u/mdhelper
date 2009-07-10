@@ -116,6 +116,9 @@ void addPathToFileDict(NSMutableDictionary *filedict, NSString *path)
 	NSMutableDictionary *current = filedict;
 	for (NSString *each in components)
 	{
+		// Mike Rose Safety
+		if (![current isKindOfClass:[NSDictionary class]]) break;
+		
 		if ([current objectForKey:each])
 			current = [current objectForKey:each];
 		else
@@ -125,7 +128,10 @@ void addPathToFileDict(NSMutableDictionary *filedict, NSString *path)
 			current = dict;
 		}
 	}
-	[current setObject:last forKey:last];
+	
+	// Mike Rose Safety
+	if ([current isKindOfClass:[NSDictionary class]]) 
+		[current setObject:last forKey:last];
 }
 
 void showFileDictHelper(NSDictionary *dict, int indent)
@@ -350,7 +356,6 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 				if (!domain) domain = [plist objectForKey:@"Domain"];
 				NSString *xpath = [mddict objectForKey:@"Path"];
 				if (!xpath) xpath = [plist objectForKey:@"Path"];
-				
 				if (!xpath)
 				{
 					printf("Skipping %s [path error, old]\n", [mdpath UTF8String]);
@@ -405,7 +410,6 @@ void extractPlatformContents(int option, NSString *pmatchphrase, NSString *fmatc
 				if (!domain) domain = [plist objectForKey:@"Domain"];
 				NSString *xpath = [mddict objectForKey:@"Path"];
 				if (!xpath) xpath = [plist objectForKey:@"Path"];
-				
 				if (!xpath)
 				{
 					printf("Skipping %s [path error, new]\n", [mdpath UTF8String]);
