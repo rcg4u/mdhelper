@@ -222,6 +222,7 @@ void listPlatformContents(int option, NSString *pmatchphrase, NSString *fmatchph
 				if (fmatchphrase) fmatch = checkmatch(path, fmatchphrase);
 				if (fmatch) 
 				{
+					printf("Matched File: %s\n", [mdpath UTF8String]);
 					addPathToFileDict(filedict, path);
 					if (option & SHOWMDS) printf("%s\n", [mdpath UTF8String]);
 				}
@@ -246,6 +247,7 @@ void listPlatformContents(int option, NSString *pmatchphrase, NSString *fmatchph
 				if (fmatchphrase) fmatch = checkmatch(path, fmatchphrase);
 				if (fmatch)
 				{
+					printf("Matched File: %s\n", [mdpath UTF8String]);
 					addPathToFileDict(filedict, path);
 					if (option & SHOWMDS) printf("%s\n", [mdpath UTF8String]);
 				}
